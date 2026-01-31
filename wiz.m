@@ -1,17 +1,13 @@
-% viz_mpnet_layers_2onTop.m
-% WARSTWOWA WIZUALIZACJA: statyczne=1, dynamiczne=2 (na wierzchu) + sciezka plannerMPNET
-% Legenda: punkt poczatkowy, punkt zadany (cel), przeszkody statyczne, przeszkody dynamiczne, sciezka
+% WARSTWOWA WIZUALIZACJA: statyczne=1, dynamiczne=2 + sciezka plannerMPNET
 
 clear; clc; close all;
-
-%% --- USTAWIENIA ---
 seed = 100;
 
 robotRadius = 0.10;   % [m] inflacja przeszkod (bufor)
 valDist     = 0.01;   % [m] krok walidacji polaczen
 maxLearnedStates = 50;
 
-% Granice mapy do wizualizacji (prostokat 4x3)
+% Granice mapy do wizualizacji
 mapW_vis = 4;
 mapH_vis = 3;
 
@@ -19,7 +15,7 @@ mapH_vis = 3;
 start = [0.70 2.6 0.0];   % [x y theta]
 goal  = [3.50 0.60 0.0];
 
-%% --- WCZYTANIE WYUCZONEJ SIECI ---
+%% wczytanie sieci
 S = load("trainedMPNet_4x3.mat");
 if isfield(S,"mpnet")
     mpnet = S.mpnet;
@@ -32,7 +28,7 @@ else
     error("trainedMPNet_4x3.mat musi zawierac 'mpnet' lub 'trained'.");
 end
 
-%% --- GENERACJA SCENARIUSZA (TWOJE FUNKCJE) ---
+%generowanie scenariusza
 rng(seed,"twister");
 sc = genRandomScenarioForMPNet(seed);
 
@@ -47,8 +43,7 @@ end
 
 % Siatka srodkow komorek (uklad swiata)
 [Xc, Yc] = meshgrid(dyn.xCenters, dyn.yCenters);
-
-%% --- MASKI: STATYCZNE i DYNAMICZNE (w tym samym ukladzie swiata) ---
+-
 % Statyczne: probkowanie mapy statycznej w punktach siatki
 pts = [Xc(:) Yc(:)];
 occStatVals = getOccupancy(sc.mapStatic, pts);
@@ -57,16 +52,12 @@ occStatVals = getOccupancy(sc.mapStatic, pts);
 occStatVals(isnan(occStatVals)) = 1;
 
 occStat = reshape(occStatVals >= 0.5, size(Xc));
-
-% Dynamiczne: progowanie intensywnosci d
 occDyn = (dyn.d >= dyn.d_thr);
 
-%% --- MACIERZ WIZUALIZACJI: 0 wolne, 1 statyczne, 2 dynamiczne (na wierzchu) ---
 Z = zeros(size(occStat), "double");
 Z(occStat) = 1;
 Z(occDyn)  = 2;  % dynamiczne nadpisuje statyczne (na wierzchu)
 
-%% --- MAPA DO PLANOWANIA: OR(stat,dyn) -> binarna occupancy map ---
 dx = dyn.xCenters(2) - dyn.xCenters(1);
 dy = dyn.yCenters(2) - dyn.yCenters(1);
 if abs(dx-dy) > 1e-9
@@ -126,14 +117,14 @@ end
 [pathMP, infoMP] = plan(planner, start, goal);
 fprintf("MPNet: IsPathFound=%d\n", getFieldOrDefault(infoMP,"IsPathFound",0));
 
-%% --- WYKRES: warstwy + sciezka ---
+%warstwy + sciezka 
 figure("Color","w","Position",[80 80 1150 520]);
 ax = axes; hold(ax,"on"); axis(ax,"equal"); grid(ax,"on");
 
 imagesc(ax, dyn.xCenters, dyn.yCenters, Z);
 set(ax,"YDir","normal"); % wazne: os Y w gore (uklad swiata)
 
-% --- GRANICE MAPY: prostokat 4x3 ---
+%prostokat 4x3
 xlim(ax, [0 mapW_vis]);
 ylim(ax, [0 mapH_vis]);
 hBorder = rectangle(ax, "Position",[0 0 mapW_vis mapH_vis], ...
@@ -166,7 +157,7 @@ legend(ax, [hStart hGoal hStatic hDynamic hPath], ...
     {"punkt poczatkowy", "punkt zadany (cel)", "przeszkody statyczne", "przeszkody dynamiczne", "sciezka plannerMPNET"}, ...
     "Location","northeastoutside");
 
-%% --- FUNKCJE POMOCNICZE ---
+%fp
 function v = getFieldOrDefault(s, field, def)
     if isstruct(s) && isfield(s, field)
         v = s.(field);
@@ -182,3 +173,4 @@ function assertInBounds(xy, mapObj, name)
         error("%s poza granicami mapy: (%.3f, %.3f).", name, xy(1), xy(2));
     end
 end
+
